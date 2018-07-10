@@ -199,13 +199,13 @@ export default class TextMarquee extends PureComponent {
     const { animating, contentFits, isScrolling } = this.state
     return (
       <View style={[styles.container]}>
-        <Text 
-          {...props} 
+        <View
+          {...props}
           numberOfLines={1}
-          style={[style, { opacity: animating ? 0 : 1 }]}
+          style={[style, {flexDirection: 'row',  opacity: animating ? 0 : 1 }]}
         >
           {this.props.children}
-        </Text>
+        </View>
         <ScrollView
           ref={c => (this.containerRef = c)}
           horizontal
@@ -217,23 +217,23 @@ export default class TextMarquee extends PureComponent {
           display={animating ? 'flex' : 'none'}
           onContentSizeChange={() => this.calculateMetrics()}
         >
-          <Animated.Text
+          <Animated.View
             ref={c => (this.textRef = c)}
             numberOfLines={1}
             {... props}
-            style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
+            style={[style, {flexDirection: 'row',  transform: [{ translateX: this.animatedValue }], width: null }]}
           >
-            {this.props.children}           
-          </Animated.Text>
+            {this.props.children}
+          </Animated.View>
           {!contentFits && !isScrolling
             ? <View style={{ paddingLeft: repeatSpacer }}>
-              <Animated.Text
+              <Animated.View
                 numberOfLines={1}
                 {... props}
                 style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
               >
-                {this.props.children}           
-              </Animated.Text>
+                {this.props.children}
+              </Animated.View>
             </View> : null }
         </ScrollView>
       </View>
