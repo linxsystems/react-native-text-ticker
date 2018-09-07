@@ -26,6 +26,7 @@ export default class TextMarquee extends PureComponent {
     useNativeDriver: PropTypes.bool,
     children:        PropTypes.oneOfType([
       PropTypes.string,
+      PropTypes.node,
       PropTypes.array
     ]),
     repeatSpacer:    PropTypes.number,
