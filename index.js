@@ -174,9 +174,9 @@ export default class TextMarquee extends PureComponent {
         } else if (this.props.animationType === 'scroll') {
           this.animateScroll()
         }
-      }, 100)
-    }
+      }}, 100)
   }
+
 
   stopAnimation() {
     this.animatedValue.setValue(0)
@@ -187,18 +187,18 @@ export default class TextMarquee extends PureComponent {
     return new Promise(async (resolve, reject) => {
       try {
         const measureWidth = node =>
-          new Promise(async (resolve, reject) => {
-            // nodehandle is not always there, causes crash. modified to check..
-            const nodeHandle = findNodeHandle(node);
-            if (nodeHandle) {
-              UIManager.measure(nodeHandle, (x, y, w) => {
-                // console.log('Width: ' + w)
-                return resolve(w)
-              })
-            } else {
-              return reject('nodehandle_not_found');
-            }
-          });
+            new Promise(async (resolve, reject) => {
+              // nodehandle is not always there, causes crash. modified to check..
+              const nodeHandle = findNodeHandle(node);
+              if (nodeHandle) {
+                UIManager.measure(nodeHandle, (x, y, w) => {
+                  // console.log('Width: ' + w)
+                  return resolve(w)
+                })
+              } else {
+                return reject('nodehandle_not_found');
+              }
+            });
 
         const [containerWidth, textWidth] = await Promise.all([
           measureWidth(this.containerRef),
@@ -254,45 +254,45 @@ export default class TextMarquee extends PureComponent {
     const { style, children, repeatSpacer, scroll, ... props } = this.props
     const { animating, contentFits, isScrolling } = this.state
     return (
-      <View style={[styles.container]}>
-        <View
-          {...props}
-          numberOfLines={1}
-          style={[style, {flexDirection: 'row',  opacity: animating ? 0 : 1 }]}
-        >
-          {this.props.children}
-        </View>
-        <ScrollView
-          ref={c => (this.containerRef = c)}
-          horizontal
-          scrollEnabled={scroll ? !this.state.contentFits : false}
-          scrollEventThrottle={16}
-          onScroll={this.onScroll}
-          showsHorizontalScrollIndicator={false}
-          style={StyleSheet.absoluteFillObject}
-          display={animating ? 'flex' : 'none'}
-          onContentSizeChange={() => this.calculateMetrics()}
-        >
-          <Animated.View
-            ref={c => (this.textRef = c)}
-            numberOfLines={1}
-            {... props}
-            style={[style, {flexDirection: 'row',  transform: [{ translateX: this.animatedValue }], width: null }]}
+        <View style={[styles.container]}>
+          <View
+              {...props}
+              numberOfLines={1}
+              style={[style, {flexDirection: 'row',  opacity: animating ? 0 : 1 }]}
           >
             {this.props.children}
-          </Animated.View>
-          {!contentFits && !isScrolling
-            ? <View style={{ paddingLeft: repeatSpacer }}>
-              <Animated.View
+          </View>
+          <ScrollView
+              ref={c => (this.containerRef = c)}
+              horizontal
+              scrollEnabled={scroll ? !this.state.contentFits : false}
+              scrollEventThrottle={16}
+              onScroll={this.onScroll}
+              showsHorizontalScrollIndicator={false}
+              style={StyleSheet.absoluteFillObject}
+              display={animating ? 'flex' : 'none'}
+              onContentSizeChange={() => this.calculateMetrics()}
+          >
+            <Animated.View
+                ref={c => (this.textRef = c)}
                 numberOfLines={1}
                 {... props}
-                style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
-              >
-                {this.props.children}
-              </Animated.View>
-            </View> : null }
-        </ScrollView>
-      </View>
+                style={[style, {flexDirection: 'row',  transform: [{ translateX: this.animatedValue }], width: null }]}
+            >
+              {this.props.children}
+            </Animated.View>
+            {!contentFits && !isScrolling
+                ? <View style={{ paddingLeft: repeatSpacer }}>
+                  <Animated.View
+                      numberOfLines={1}
+                      {... props}
+                      style={[style, { transform: [{ translateX: this.animatedValue }], width: null }]}
+                  >
+                    {this.props.children}
+                  </Animated.View>
+                </View> : null }
+          </ScrollView>
+        </View>
     )
   }
 
