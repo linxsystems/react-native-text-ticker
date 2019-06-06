@@ -54,21 +54,28 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
 ```
+
 
 ## Properties
 | Prop            | Type      | Optional | Default  | Description
 |-----------------|-----------|----------|----------|-------------
 | style           | StyleObj  | true     | -        | Text Style
 | duration        | number    | true     | `150ms` * length of string | Number of milliseconds until animation finishes
-| loop            | boolean   | true     |  true    | Infinitely scroll the text
-| bounce          | boolean   | true     |  true    | If text is only slightly longer than its container then bounce back/forwards instead of full scroll
+| scrollingSpeed  | number    | true     |  50      | Describes how fast the bounce animation moves. Effective when duration is not set.  When effective, the duration will depends on the width of text and screen width
+| animationType   | string    | true     | 'auto'   | one of the values from 'auto', 'scroll', 'bounce'
+| loop            | boolean   | true     |  true    | Infinitely scroll the text, effective when animationType is 'auto'
+| bounce          | boolean   | true     |  true    | If text is only slightly longer than its container then bounce back/forwards instead of full scroll, effective when animationType is 'auto'
 | scroll          | boolean   | true     |  true    | Gives the ability to grab the text and scroll for the user to read themselves. Will start scrolling again after `marqueeDelay` or `3000ms`
 | marqueeOnMount  | boolean   | true     |  true    | Will start scroll as soon as component has mounted. Disable if using methods instead.
 | marqueeDelay    | number    | true     |  0       | Number of milliseconds to wait before starting marquee
+| onMarqueeComplete | function | true    |  -       | This function will run after the text has completely passed across the screen. Will run repeatedly if `loop` is enabled.
+| onScrollStart   | function  | true     |  -       | This function will run if the text is long enough to trigger the scroll.
+| isInteraction   | boolean   | true     | true     | Whether or not animations create an interaction handle on the `InteractionManager`. Disable if you are having issues with VirtualizedLists not rendering properly.
 | useNativeDriver | boolean   | true     | true     | Use native animation driver, should remain true for large majority of use-cases
 | repeatSpacer    | number    | true     | 50       | The space between the end of your text string ticker and the beginning of it starting again.
 | easing          | function  | true     | Easing.ease | How the text scrolling animates. Additional options available from the [Easing module](https://facebook.github.io/react-native/docs/easing.html)

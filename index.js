@@ -13,24 +13,35 @@ import PropTypes from 'prop-types'
 
 const { UIManager } = NativeModules
 
+export const TextTickAnimationType = Object.freeze({
+  auto: 'auto',
+  scroll: 'scroll',
+  bounce: 'bounce'
+})
+
 export default class TextMarquee extends PureComponent {
 
   static propTypes = {
-    style:           Text.propTypes.style,
-    duration:        PropTypes.number,
-    loop:            PropTypes.bool,
-    bounce:          PropTypes.bool,
-    scroll:          PropTypes.bool,
-    marqueeOnMount:  PropTypes.bool,
-    marqueeDelay:    PropTypes.number,
-    useNativeDriver: PropTypes.bool,
-    children:        PropTypes.oneOfType([
+    style:             Text.propTypes.style,
+    duration:          PropTypes.number,
+    loop:              PropTypes.bool,
+    bounce:            PropTypes.bool,
+    scroll:            PropTypes.bool,
+    marqueeOnMount:    PropTypes.bool,
+    marqueeDelay:      PropTypes.number,
+    isInteraction:     PropTypes.bool,
+    useNativeDriver:   PropTypes.bool,
+    onMarqueeComplete: PropTypes.func,
+    onScrollStart:     PropTypes.func,
+    children:          PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.node,
       PropTypes.array
     ]),
-    repeatSpacer:    PropTypes.number,
-    easing:          PropTypes.func
+    repeatSpacer:      PropTypes.number,
+    easing:            PropTypes.func,
+    animationType:     PropTypes.string, //(values should be from AnimationType, 'auto', 'scroll', 'bounce')
+    scrollingSpeed:    PropTypes.number //Will be ignored if you set duration directly.
   }
 
   static defaultProps = {
@@ -40,9 +51,12 @@ export default class TextMarquee extends PureComponent {
     scroll:            true,
     marqueeOnMount:    true,
     marqueeDelay:      0,
+    isInteraction:     true,
     useNativeDriver:   true,
     repeatSpacer:      50,
-    easing:            Easing.ease
+    easing:            Easing.ease,
+    animationType:     'auto',
+    scrollingSpeed:    50
   }
 
   animatedValue = new Animated.Value(0)
@@ -57,11 +71,7 @@ export default class TextMarquee extends PureComponent {
     isScrolling:  false
   }
 
-  mounted = false;
-
-  async componentDidMount() {
-    this.mounted = true;
-
+  componentDidMount() {
     this.invalidateMetrics()
     const { marqueeDelay, marqueeOnMount } = this.props
     if (marqueeOnMount) {
@@ -70,30 +80,9 @@ export default class TextMarquee extends PureComponent {
   }
 
   componentWillUnmount() {
-    this.mounted = false;
-
-    // clear all timeouts and intervals to prevent crashing
-    if (this.scrollTimer) {
-      clearTimeout(this.scrollTimer);
-      this.scrollTimer = null;
-    }
-    if (this.onScrollTimer) {
-      clearTimeout(this.onScrollTimer);
-      this.onScrollTimer = null;
-    }
-    if (this.bounceTimer) {
-      clearTimeout(this.bounceTimer);
-      this.bounceTimer = null;
-    }
-    if (this.startTimer) {
-      clearTimeout(this.startTimer);
-      this.startTimer = null;
-    }
-    if (this.timer) {
-      clearTimeout(this.timer)
-      this.timer = null
-    }
-
+    this.stopAnimation();
+    // always stop timers when unmounting, common source of crash
+    this.clearTimeout();
   }
 
   startAnimation = (timeDelay) => {
@@ -104,15 +93,29 @@ export default class TextMarquee extends PureComponent {
   }
 
   animateScroll = () => {
-    const {duration, marqueeDelay, loop, useNativeDriver, repeatSpacer, easing, children} = this.props
-    this.scrollTimer = this.setTimeout(() => {
+    const {
+      duration,
+      marqueeDelay,
+      loop,
+      isInteraction,
+      useNativeDriver,
+      repeatSpacer,
+      easing,
+      children,
+      onMarqueeComplete
+    } = this.props
+    this.setTimeout(() => {
       Animated.timing(this.animatedValue, {
         toValue:         -this.textWidth - repeatSpacer,
         duration:        duration || children.length * 150,
         easing:          easing,
+        isInteraction:   isInteraction,
         useNativeDriver: useNativeDriver
       }).start(({ finished }) => {
         if (finished) {
+          if (onMarqueeComplete) {
+            onMarqueeComplete()
+          }
           if (loop) {
             this.animatedValue.setValue(0)
             this.animateScroll()
@@ -123,40 +126,53 @@ export default class TextMarquee extends PureComponent {
   }
 
   animateBounce = () => {
-    const {duration, marqueeDelay, loop, useNativeDriver, easing, children} = this.props
-    this.bounceTimer = this.setTimeout(() => {
+    const {duration, marqueeDelay, loop, isInteraction, useNativeDriver, easing, children, scrollingSpeed} = this.props
+    this.setTimeout(() => {
       Animated.sequence([
         Animated.timing(this.animatedValue, {
           toValue:         -this.distance - 10,
-          duration:        duration || children.length * 50,
+          duration:        duration || (this.distance) * scrollingSpeed,
           easing:          easing,
+          isInteraction:   isInteraction,
           useNativeDriver: useNativeDriver
         }),
         Animated.timing(this.animatedValue, {
           toValue:         10,
-          duration:        duration || children.length * 50,
+          duration:        duration || (this.distance) * scrollingSpeed,
           easing:          easing,
+          isInteraction:   isInteraction,
           useNativeDriver: useNativeDriver
         })
       ]).start(({finished}) => {
+        if (finished) {
+          this.hasFinishedFirstLoop = true
+        }
         if (loop) {
           this.animateBounce()
         }
       })
-    }, marqueeDelay)
+    }, this.hasFinishedFirstLoop ? 0 : marqueeDelay)
   }
 
   start = async (timeDelay) => {
-    if (this.mounted) {
-      this.setState({ animating: true })
-      this.startTimer = this.setTimeout(async () => {
-        await this.calculateMetrics()
-        if (!this.state.contentFits) {
+    this.setState({ animating: true })
+    this.setTimeout(async () => {
+      await this.calculateMetrics()
+      if (!this.state.contentFits) {
+        const {onScrollStart} = this.props
+        if(onScrollStart && typeof onScrollStart === "function") {
+          onScrollStart()
+        }
+        if (this.props.animationType === 'auto') {
           if (this.state.shouldBounce && this.props.bounce) {
             this.animateBounce()
           } else {
             this.animateScroll()
           }
+        } else if (this.props.animationType === 'bounce') {
+          this.animateBounce()
+        } else if (this.props.animationType === 'scroll') {
+          this.animateScroll()
         }
       }, 100)
     }
@@ -164,55 +180,52 @@ export default class TextMarquee extends PureComponent {
 
   stopAnimation() {
     this.animatedValue.setValue(0)
-    if (this.mounted) {
-      this.setState({ animating: false, shouldBounce: false })
-    }
+    this.setState({ animating: false, shouldBounce: false })
   }
 
   async calculateMetrics() {
     return new Promise(async (resolve, reject) => {
       try {
         const measureWidth = node =>
-          new Promise(resolve => {
-            UIManager.measure(findNodeHandle(node), (x, y, w) => {
-              // console.log('Width: ' + w)
-              return resolve(w)
-            })
-          })
+          new Promise(async (resolve, reject) => {
+            // nodehandle is not always there, causes crash. modified to check..
+            const nodeHandle = findNodeHandle(node);
+            if (nodeHandle) {
+              UIManager.measure(nodeHandle, (x, y, w) => {
+                // console.log('Width: ' + w)
+                return resolve(w)
+              })
+            } else {
+              return reject('nodehandle_not_found');
+            }
+          });
 
-        if (this.mounted) {
-          const [containerWidth, textWidth] = await Promise.all([
-            measureWidth(this.containerRef),
-            measureWidth(this.textRef)
-          ]);
+        const [containerWidth, textWidth] = await Promise.all([
+          measureWidth(this.containerRef),
+          measureWidth(this.textRef)
+        ]);
 
-          this.containerWidth = containerWidth
-          this.textWidth = textWidth
-          this.distance = textWidth - containerWidth
+        this.containerWidth = containerWidth
+        this.textWidth = textWidth
+        this.distance = textWidth - containerWidth
 
-          if (this.mounted) {
-            this.setState({
-              // Is 1 instead of 0 to get round rounding errors from:
-              // https://github.com/facebook/react-native/commit/a534672
-              contentFits:  this.distance <= 1,
-              shouldBounce: this.distance < this.containerWidth / 8
-            })
-          }
-        }
-
+        this.setState({
+          // Is 1 instead of 0 to get round rounding errors from:
+          // https://github.com/facebook/react-native/commit/a534672
+          contentFits:  this.distance <= 1,
+          shouldBounce: this.distance < this.containerWidth / 8
+        })
         // console.log(`distance: ${this.distance}, contentFits: ${this.state.contentFits}`)
         resolve([])
       } catch (error) {
-        console.warn(error)
+        console.warn('react-native-text-ticker: could not calculate metrics', error);
       }
     })
   }
 
   invalidateMetrics = () => {
     this.distance = null
-    if (this.mounted) {
-      this.setState({ contentFits: false })
-    }
+    this.setState({ contentFits: false })
   }
 
   clearTimeout() {
@@ -228,17 +241,13 @@ export default class TextMarquee extends PureComponent {
   }
 
   onScroll = () => {
-    if (this.mounted) {
-      this.clearTimeout()
-      this.setState({ isScrolling: true })
-      this.animatedValue.setValue(0)
-      this.onScrollTimer = this.setTimeout(() => {
-        if (this.mounted) {
-          this.setState({ isScrolling: false })
-          this.start()
-        }
-      }, this.props.marqueeDelay || 3000)
-    }
+    this.clearTimeout()
+    this.setState({ isScrolling: true })
+    this.animatedValue.setValue(0)
+    this.setTimeout(() => {
+      this.setState({ isScrolling: false })
+      this.start()
+    }, this.props.marqueeDelay || 3000)
   }
 
   render() {
